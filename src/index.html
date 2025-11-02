@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat com Notificações</title>
+  <style>
+    body {
+      margin: 0;
+      padding-bottom: 3rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f4f4f4;
+    }
+    #form {
+      background: rgba(0, 0, 0, 0.15);
+      padding: 0.25rem;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      height: 3rem;
+      box-sizing: border-box;
+      backdrop-filter: blur(10px);
+    }
+    #input {
+      border: none;
+      padding: 0 1rem;
+      flex-grow: 1;
+      border-radius: 2rem;
+      margin: 0.25rem;
+    }
+    #input:focus {
+      outline: none;
+    }
+    #form > button {
+      background: #333;
+      border: none;
+      padding: 0 1rem;
+      margin: 0.25rem;
+      border-radius: 3px;
+      outline: none;
+      color: #fff;
+    }
+    #messages {
+      list-style-type: none;
+      margin: 0;
+      padding: 0;
+      overflow-y: auto;
+      max-height: calc(100vh - 3rem);
+    }
+    #messages > li {
+      padding: 0.5rem 1rem;
+    }
+    #messages > li:nth-child(odd) {
+      background: #efefef;
+    }
+    #emojiPicker {
+      display: none;
+      position: fixed;
+      bottom: 4rem;
+      right: 1rem;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <ul id="messages">
+    <li>Texto</li>
+  </ul>
+  <form id="form" action="">
+    <input id="input" autocomplete="off" />
+    <button type="button" id="emojiBtn">😊</button>
+    <button>Send</button>
+  </form>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
+  <emoji-picker id="emojiPicker" style="position: fixed; bottom: 4rem; right: 1rem;"></emoji-picker>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    let username = '';
+    while (!username) {
+      username = prompt('Digite seu nome:');
+    }
+    socket.emit('join', username);
+
+    // Solicita permissão para notificações
+    if (Notification.permission !== 'granted') {
+      Notification.requestPermission();
+    }
+
+    const message = document.getElementById('messages');
+    const input = document.getElementById('input');
+    const emojiPicker = document.getElementById('emojiPicker');
+    const emojiBtn = document.getElementById('emojiBtn');
+
+    emojiBtn.addEventListener('click', () => {
+      emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
+    });
+
+    emojiPicker.addEventListener('emoji-click', event => {
+      input.value += event.detail.unicode;
+      input.focus();
+    });
+
+    document.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (input.value.trim()) {
+        socket.emit('message', input.value);
+        input.value = '';
+      }
+    });
+
+    socket.on('message', (msg) => {
+      const li = document.createElement('li'); //
+      li.textContent = msg;
+      message.appendChild(li);
+
+      // Rolagem automática
+      message.scrollTop = message.scrollHeight;
+
+      // Notificação se a aba não estiver visível
+      if (document.hidden && Notification.permission === 'granted') {
+        new Notification('Nova mensagem', {
+          body: msg,
+          icon: 'https://cdn-icons-png.flaticon.com/512/2589/2589175.png' // Ícone opcional
+        });
+      }
+    });
+  </script>
+</body>
+</html>
